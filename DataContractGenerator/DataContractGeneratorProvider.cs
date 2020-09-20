@@ -231,7 +231,26 @@ namespace DataContractGenerator
 
         private object GetRandomConcreteInstanceFromInterface(Type pType)
         {
-            throw new NotImplementedException();
+            List<Type> types = AppDomain.CurrentDomain.GetAssemblies()
+                .SelectMany(ns => ns.GetTypes())
+                .Where(t => pType.IsAssignableFrom(t) && t.IsClass && !t.IsAbstract && t.GetConstructors().Length > 0)
+                .ToList();
+
+            if (types.Count == 0)
+            {
+                throw new NotSupportedException();
+            }
+
+            var selectedType = types[_rdm.Next(0, types.Count)];
+
+            if (selectedType.GetConstructor(Type.EmptyTypes) != null)
+            {
+                return DynamicGenerateRandom(selectedType);
+            }
+            else
+            {
+                return DynamicComplexConstructor(selectedType.GetConstructors());
+            }
         }
 
         private object GetRandomTuple(Type[] genericTypeArguments)
@@ -322,7 +341,9 @@ namespace DataContractGenerator
             {
                 ctorParameters.Add(GetRandomValueForType(pInfo.ParameterType));
             }
-            return ctor.Invoke(ctorParameters.ToArray());
+            object instance = ctor.Invoke(ctorParameters.ToArray());
+            FillRandomProperties(instance);
+            return instance;
         }
 
         private object DynamicGenerateRandom(Type type)
