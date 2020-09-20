@@ -236,13 +236,6 @@ namespace DataContractGenerator
             }
         }
 
-        private object GetRandomFloat()
-        {
-            double mantissa = (_rdm.NextDouble() * 2.0) - 1.0;
-            double exponent = Math.Pow(2.0, _rdm.Next(-126, 128));
-            return (float)(mantissa * exponent);
-        }
-
         private object GetRandomConcreteInstanceFromInterface(Type pType)
         {
             List<Type> types = AppDomain.CurrentDomain.GetAssemblies()
@@ -255,16 +248,7 @@ namespace DataContractGenerator
                 throw new NotSupportedException();
             }
 
-            var selectedType = types[_rdm.Next(0, types.Count)];
-
-            if (selectedType.GetConstructor(Type.EmptyTypes) != null)
-            {
-                return DynamicGenerateRandom(selectedType);
-            }
-            else
-            {
-                return DynamicComplexConstructor(selectedType.GetConstructors());
-            }
+            return GetRandomValueForType(types[_rdm.Next(0, types.Count)]);
         }
 
         private object GetRandomTuple(Type[] genericTypeArguments)
@@ -337,9 +321,7 @@ namespace DataContractGenerator
 
             for (int i = 0; i < _rdm.Next(MIN_LIST_COUNT, MAX_LIST_COUNT + 1); i++)
             {
-                object elementInstance = DynamicGenerateRandom(type.GenericTypeArguments[0]);
-
-                addMethod.Invoke(listOfPropType, new object[] { elementInstance });
+                addMethod.Invoke(listOfPropType, new object[] { GetRandomValueForType(type.GenericTypeArguments[0]) });
             }
 
             return listOfPropType;
@@ -366,7 +348,14 @@ namespace DataContractGenerator
                 .Invoke(this, null);
         }
 
-        #region Struct and primitive types instanciation
+        #region System types instanciation
+
+        private static float GetRandomFloat()
+        {
+            double mantissa = (_rdm.NextDouble() * 2.0) - 1.0;
+            double exponent = Math.Pow(2.0, _rdm.Next(-126, 128));
+            return (float)(mantissa * exponent);
+        }
 
         private static Guid GetRandomGuid()
         {
