@@ -10,6 +10,7 @@ namespace DataContractGenerator
     /// </summary>
     public class DataContractGeneratorProvider
     {
+        // Can't make this dynamic: number of arguments expected for each kind of tuple
         private static readonly IDictionary<int, Type> _tupleTypes = new Dictionary<int, Type>
         {
             { 1, typeof(Tuple<>) },
@@ -24,11 +25,14 @@ namespace DataContractGenerator
 
         /// <summary>
         /// List of built-in managed types.
-        /// When an interface is specified, implementations that inherit directly the interface are managed.
-        /// For other types, tries the default constructor if any; otherwise a random available constructor.
         /// </summary>
         /// <remarks>
-        /// Despite not being in this list, arrays are managed, as long as:
+        /// Despite not being in this list:
+        /// Every generic types that inherit from <see cref="System.Collections.IEnumerable"/>
+        /// will be managed as <see cref="List{T}"/> or <see cref="Dictionary{TKey, TValue}"/>,
+        /// depending on the number of underlying generic types.
+        /// This implementation might fail for specific type such as <see cref="HashSet{T}"/> or <see cref="SortedList{TKey, TValue}"/>.
+        /// Arrays are managed, as long as:
         /// <list type="bullet">
         /// <item>They're generic; ie not <see cref="Array"/>.</item>
         /// <item>They're uni-dimensional.</item>
@@ -39,10 +43,7 @@ namespace DataContractGenerator
             typeof(string), typeof(decimal), typeof(sbyte), typeof(byte), typeof(ushort), typeof(short), typeof(int),
             typeof(uint), typeof(long), typeof(ulong), typeof(char), typeof(bool), typeof(double), typeof(float),
             typeof(DateTime), typeof(Enum), typeof(Nullable<>), typeof(KeyValuePair<,>), typeof(TimeSpan),
-            typeof(Tuple<>), typeof(Tuple<,>), typeof(Tuple<,,>), typeof(Tuple<,,,>), typeof(Tuple<,,,,>),
-            typeof(Tuple<,,,,,>), typeof(Tuple<,,,,,,>), typeof(Tuple<,,,,,,,>), typeof(DateTimeOffset),
-            typeof(IReadOnlyDictionary<,>), typeof(IDictionary<,>), typeof(IEnumerable<>),
-            typeof(IReadOnlyList<>), typeof(IList<>), typeof(ICollection<>), typeof(Guid)
+            typeof(Tuple<>), typeof(Tuple<,,,,,,,>), typeof(DateTimeOffset), typeof(Guid)
         };
 
         private const int MAX_LIST_COUNT = 10;
