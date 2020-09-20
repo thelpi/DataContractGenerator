@@ -54,12 +54,13 @@ namespace DataContractGenerator
         private static readonly string _alphaFull = string.Concat(_alpha, _alpha.ToUpper());
         private static readonly Random _rdm = new Random();
 
+        private readonly ILogger _logger;
         private readonly Dictionary<Type, Delegate> _converters = new Dictionary<Type, Delegate>();
 
         /// <summary>
         /// Default constructor.
         /// </summary>
-        public DataContractGeneratorProvider() : this(null) { }
+        public DataContractGeneratorProvider() : this(new DefaultLogger(), null) { }
 
         /// <summary>
         /// Constructor.
@@ -69,13 +70,16 @@ namespace DataContractGenerator
         /// The key is the target type.
         /// The value is the delegate to obtain the instance of the target type.
         /// </param>
+        /// <param name="logger">Logger.</param>
         /// <remarks>
         /// Converters are applied in the order they're provided, and the converter is apply on a property that is from a child type.
         /// So make sure to provide the most specific types in first.
         /// </remarks>
         /// <exception cref="ArgumentException"><paramref name="converters"/> contains one or several null referenced delegates.</exception>
-        public DataContractGeneratorProvider(IDictionary<Type, Delegate> converters)
+        /// <exception cref="ArgumentNullException"><paramref name="logger"/> is <c>Null</c>.</exception>
+        public DataContractGeneratorProvider(ILogger logger, IDictionary<Type, Delegate> converters)
         {
+            _logger = logger ?? throw new ArgumentNullException(nameof(logger));
             if (converters != null)
             {
                 if (converters.Any(c => c.Value == null))
@@ -91,9 +95,6 @@ namespace DataContractGenerator
         /// </summary>
         /// <typeparam name="T">Type to instanciate.</typeparam>
         /// <returns>Instance of type.</returns>
-        /// <exception cref="NotSupportedException">
-        /// The property type is not included in <see cref="ManagedTypes"/> or in the custom converters list, and does not have a suitable constructor.
-        /// </exception>
         public T GenerateRandom<T>() where T : new()
         {
             T instance = (T)typeof(T).GetConstructor(Type.EmptyTypes).Invoke(null);
@@ -105,14 +106,19 @@ namespace DataContractGenerator
         /// Randomise values of each property of an instance (of any type), as long as the setter is publicly accessible.
         /// </summary>
         /// <param name="instance">The instance to fill.</param>
-        /// <exception cref="NotSupportedException">
-        /// The property type is not included in <see cref="ManagedTypes"/> or in the custom converters list, and does not have a suitable constructor.
-        /// </exception>
         public void FillRandomProperties(object instance)
         {
             foreach (PropertyInfo property in instance.GetType().GetProperties().Where(p => p.SetMethod != null))
             {
-                property.SetValue(instance, GetRandomValueForType(property.PropertyType));
+                try
+                {
+                    object value = GetRandomValueForType(property.PropertyType);
+                    property.SetValue(instance, value);
+                }
+                catch (Exception ex)
+                {
+                    _logger.Log(ex);
+                }
             }
         }
 
@@ -134,12 +140,15 @@ namespace DataContractGenerator
             {
                 return GetRandomDecimal();
             }
-            else if (pType == typeof(sbyte) || pType == typeof(byte)
-                 || pType == typeof(ushort) || pType == typeof(short)
-                || pType == typeof(int) || pType == typeof(uint)
-                || pType == typeof(long) || pType == typeof(ulong))
+            else if (pType == typeof(sbyte) || pType == typeof(short)
+                || pType == typeof(int) || pType == typeof(long))
             {
-                return GetRandomSmallInteger();
+                return GetRandomInteger();
+            }
+            else if (pType == typeof(byte) || pType == typeof(ushort)
+                || pType == typeof(uint) || pType == typeof(ulong))
+            {
+                return GetRandomUnsignedInteger();
             }
             else if (pType == typeof(char))
             {
@@ -151,7 +160,7 @@ namespace DataContractGenerator
             }
             else if (pType == typeof(double) || pType == typeof(float))
             {
-                return _rdm.NextDouble();
+                return GetRandomFloat();
             }
             else if (pType.IsEnum)
             {
@@ -197,17 +206,15 @@ namespace DataContractGenerator
             {
                 return GetArrayOfType(pType);
             }
-            else if (pType.IsGenericType && (
-                typeof(IDictionary<,>).IsAssignableFrom(pType.GetGenericTypeDefinition())
-                || typeof(IReadOnlyDictionary<,>).IsAssignableFrom(pType.GetGenericTypeDefinition())))
+            else if (pType.IsGenericType
+                && pType.GenericTypeArguments.Length == 2
+                && typeof(System.Collections.IEnumerable).IsAssignableFrom(pType))
             {
                 return GetGenericDictionary(pType.GenericTypeArguments[0], pType.GenericTypeArguments[1]);
             }
-            else if (pType.IsGenericType && (
-                typeof(IReadOnlyCollection<>).IsAssignableFrom(pType.GetGenericTypeDefinition())
-                || typeof(IList<>).IsAssignableFrom(pType.GetGenericTypeDefinition())
-                || typeof(ICollection<>).IsAssignableFrom(pType.GetGenericTypeDefinition())
-                || typeof(IEnumerable<>).IsAssignableFrom(pType.GetGenericTypeDefinition())))
+            else if (pType.IsGenericType
+                && pType.GenericTypeArguments.Length == 1
+                && typeof(System.Collections.IEnumerable).IsAssignableFrom(pType))
             {
                 return GetGenericList(pType);
             }
@@ -227,6 +234,13 @@ namespace DataContractGenerator
             {
                 throw new NotSupportedException();
             }
+        }
+
+        private object GetRandomFloat()
+        {
+            double mantissa = (_rdm.NextDouble() * 2.0) - 1.0;
+            double exponent = Math.Pow(2.0, _rdm.Next(-126, 128));
+            return (float)(mantissa * exponent);
         }
 
         private object GetRandomConcreteInstanceFromInterface(Type pType)
@@ -305,27 +319,25 @@ namespace DataContractGenerator
             return actualValues;
         }
 
-        private object GetRandomNullableValue(Type pType)
+        private object GetRandomNullableValue(Type type)
         {
             return GetRandomBoolean() ? null :
-                Convert.ChangeType(GetRandomValueForType(Nullable.GetUnderlyingType(pType)),
-                    Nullable.GetUnderlyingType(pType));
+                Convert.ChangeType(GetRandomValueForType(Nullable.GetUnderlyingType(type)),
+                    Nullable.GetUnderlyingType(type));
         }
 
-        private object GetGenericList(Type pType)
+        private object GetGenericList(Type type)
         {
-            var underlyingType = pType.GenericTypeArguments.First();
-
-            var listOfPropType = typeof(List<>)
-                .MakeGenericType(underlyingType)
+            object listOfPropType = typeof(List<>)
+                .MakeGenericType(type.GenericTypeArguments[0])
                 .GetConstructor(Type.EmptyTypes)
                 .Invoke(null);
 
-            var addMethod = listOfPropType.GetType().GetMethod(nameof(System.Collections.IList.Add));
+            MethodInfo addMethod = listOfPropType.GetType().GetMethod(nameof(System.Collections.IList.Add));
 
             for (int i = 0; i < _rdm.Next(MIN_LIST_COUNT, MAX_LIST_COUNT + 1); i++)
             {
-                object elementInstance = DynamicGenerateRandom(underlyingType);
+                object elementInstance = DynamicGenerateRandom(type.GenericTypeArguments[0]);
 
                 addMethod.Invoke(listOfPropType, new object[] { elementInstance });
             }
@@ -363,17 +375,17 @@ namespace DataContractGenerator
 
         private static DateTimeOffset GetRandomDateTimeOffset()
         {
-            return new DateTimeOffset(GetRandomDateTime(), GetRandomTimeSpan());
+            return new DateTimeOffset(GetRandomDateTime(DateTimeKind.Unspecified), new TimeSpan(0, _rdm.Next(0, 60), 0));
         }
 
         private static TimeSpan GetRandomTimeSpan()
         {
-            return new TimeSpan(_rdm.Next(0, int.MaxValue), _rdm.Next(0, 24), _rdm.Next(0, 60), _rdm.Next(0, 60), _rdm.Next(0, 1000));
+            return new TimeSpan(_rdm.Next(0, TimeSpan.MaxValue.Days), _rdm.Next(0, 24), _rdm.Next(0, 60), _rdm.Next(0, 60), _rdm.Next(0, 1000));
         }
 
-        private static DateTime GetRandomDateTime()
+        private static DateTime GetRandomDateTime(DateTimeKind? dtk = null)
         {
-            List<DateTimeKind> dtk = Enum.GetValues(typeof(DateTimeKind)).Cast<DateTimeKind>().ToList();
+            List<DateTimeKind> dtks = Enum.GetValues(typeof(DateTimeKind)).Cast<DateTimeKind>().ToList();
             return new DateTime(_rdm.Next(0, 3000),
                 _rdm.Next(1, 13),
                 _rdm.Next(1, 29),
@@ -381,13 +393,13 @@ namespace DataContractGenerator
                 _rdm.Next(0, 60),
                 _rdm.Next(0, 60),
                 _rdm.Next(0, 1000),
-                dtk[_rdm.Next(0, dtk.Count)]);
+                dtk ?? dtks[_rdm.Next(0, dtks.Count)]);
         }
 
-        private static object GetRandomEnumValue(Type pType)
+        private static object GetRandomEnumValue(Type type)
         {
             // Dirty, but values from non-generic Array can't be accessed by [] or Linq
-            Array values = Enum.GetValues(pType);
+            Array values = Enum.GetValues(type);
             int stopTo = _rdm.Next(0, values.Length);
             int i = 0;
             foreach (object value in values)
@@ -403,12 +415,17 @@ namespace DataContractGenerator
 
         private static decimal GetRandomDecimal()
         {
-            return GetRandomSmallInteger() + (GetRandomSmallInteger() / (decimal)(sbyte.MaxValue + 1));
+            return GetRandomInteger() + (GetRandomUnsignedInteger() / (decimal)(byte.MaxValue + 1));
         }
 
-        private static sbyte GetRandomSmallInteger()
+        private static byte GetRandomUnsignedInteger()
         {
-            return (sbyte)_rdm.Next(0, sbyte.MaxValue + 1);
+            return (byte)_rdm.Next(byte.MinValue, byte.MaxValue + 1);
+        }
+
+        private static sbyte GetRandomInteger()
+        {
+            return (sbyte)_rdm.Next(sbyte.MinValue, sbyte.MaxValue + 1);
         }
 
         private static bool GetRandomBoolean()

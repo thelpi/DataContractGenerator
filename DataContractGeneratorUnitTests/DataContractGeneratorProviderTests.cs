@@ -1,47 +1,36 @@
 using System;
 using System.Collections.Generic;
 using DataContractGenerator;
+using DataContractGeneratorUnitTests.Datas;
 using Xunit;
 
 namespace DataContractGeneratorUnitTests
 {
     public class DataContractGeneratorProviderTests
     {
+        const string _expectedForFakeSpecValue = "SALUT";
+
         [Fact]
-        public void CreateInstanceOf_A_Success()
+        public void GenerateRandom_Success()
         {
-            var objectOf = new DataContractGeneratorProvider().GenerateRandom<A>();
+            var logger = new TestLogger();
 
-            Assert.NotNull(objectOf);
+            Dictionary<Type, Delegate> convertes = new Dictionary<Type, Delegate>
+            {
+                { typeof(FakeSpecType), new Func<FakeSpecType>(RandomFakeSpecType) }
+            };
+
+            FakeContract instance = new DataContractGeneratorProvider(logger, convertes)
+                .GenerateRandom<FakeContract>();
+
+            Assert.NotNull(instance);
+            Assert.Equal(0, logger.ErrorsCount);
+            Assert.Equal(_expectedForFakeSpecValue, instance.FakeSpec.Value);
         }
-    }
 
-    class A
-    {
-        public int Toto { get; set; }
-        public string Tutu { get; set; }
-        public B Titi { get; set; }
-        public IReadOnlyDictionary<DateTimeKind, D> Dz { get; set; }
-    }
-
-    class B
-    {
-        public IReadOnlyCollection<C> Cs { get; set; }
-        public int? Bee { get; set; }
-        public decimal? Koala { get; set; }
-        public DateTime[] Pingus { get; set; }
-    }
-
-    class C
-    {
-        public decimal Machin { get; set; }
-        public DateTime Bidule { get; set; }
-        public DateTimeKind Dtk { get; set; }
-    }
-
-    class D
-    {
-        public Tuple<string, bool> Rien { get; set; }
-        public KeyValuePair<DateTime, C> Tout { get; set; }
+        private FakeSpecType RandomFakeSpecType()
+        {
+            return new FakeSpecType { Value = _expectedForFakeSpecValue };
+        }
     }
 }
