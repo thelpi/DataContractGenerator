@@ -46,6 +46,11 @@ namespace DataContractGenerator
             typeof(Tuple<>), typeof(Tuple<,,,,,,,>), typeof(DateTimeOffset), typeof(Guid)
         };
 
+        /// <summary>
+        /// Max recursion depth.
+        /// </summary>
+        public const int MAX_RECURSION_DEPTH = 20;
+
         private const int MAX_LIST_COUNT = 10;
         private const int MIN_LIST_COUNT = 1;
         private const int MIN_STRING_LENGTH = 3;
@@ -98,32 +103,36 @@ namespace DataContractGenerator
         /// <returns>Instance of type.</returns>
         public T GenerateRandom<T>() where T : new()
         {
-            T instance = (T)typeof(T).GetConstructor(Type.EmptyTypes).Invoke(null);
-            FillRandomProperties(instance);
+            return GenerateRandomInternal<T>(0);
+        }
+
+        private T GenerateRandomInternal<T>(int depth) where T : new()
+        {
+            T instance = new T();
+            FillRandomProperties(instance, depth);
             return instance;
         }
 
-        /// <summary>
-        /// Randomise values of each property of an instance (of any type), as long as the setter is publicly accessible.
-        /// </summary>
-        /// <param name="instance">The instance to fill.</param>
-        public void FillRandomProperties(object instance)
+        private void FillRandomProperties(object instance, int depth)
         {
-            foreach (PropertyInfo property in instance.GetType().GetProperties().Where(p => p.SetMethod != null))
+            if (depth < MAX_RECURSION_DEPTH)
             {
-                try
+                foreach (PropertyInfo property in instance.GetType().GetProperties().Where(p => p.SetMethod != null))
                 {
-                    object value = GetRandomValueForType(property.PropertyType);
-                    property.SetValue(instance, value);
-                }
-                catch (Exception ex)
-                {
-                    _logger.Log(ex);
+                    try
+                    {
+                        object value = GetRandomValueForType(property.PropertyType, depth);
+                        property.SetValue(instance, value);
+                    }
+                    catch (Exception ex)
+                    {
+                        _logger.Log(ex);
+                    }
                 }
             }
         }
 
-        private object GetRandomValueForType(Type pType)
+        private object GetRandomValueForType(Type pType, int depth)
         {
             foreach (var converterType in _converters.Keys)
             {
@@ -185,11 +194,11 @@ namespace DataContractGenerator
             }
             else if (Nullable.GetUnderlyingType(pType) != null)
             {
-                return GetRandomNullableValue(pType);
+                return GetRandomNullableValue(pType, depth);
             }
             else if (pType.IsGenericType && pType.GetGenericTypeDefinition() == typeof(KeyValuePair<,>))
             {
-                return GetRandomKeyValuePair(pType.GenericTypeArguments[0], pType.GenericTypeArguments[1]);
+                return GetRandomKeyValuePair(pType.GenericTypeArguments[0], pType.GenericTypeArguments[1], depth);
             }
             else if (pType.IsGenericType && (
                 typeof(Tuple<>).IsAssignableFrom(pType.GetGenericTypeDefinition())
@@ -201,35 +210,35 @@ namespace DataContractGenerator
                 || typeof(Tuple<,,,,,,>).IsAssignableFrom(pType.GetGenericTypeDefinition())
                 || typeof(Tuple<,,,,,,,>).IsAssignableFrom(pType.GetGenericTypeDefinition())))
             {
-                return GetRandomTuple(pType.GenericTypeArguments);
+                return GetRandomTuple(pType.GenericTypeArguments, depth);
             }
             else if (pType.IsArray && pType.GetArrayRank() == 1)
             {
-                return GetArrayOfType(pType);
+                return GetArrayOfType(pType, depth);
             }
             else if (pType.IsGenericType
                 && pType.GenericTypeArguments.Length == 2
                 && typeof(System.Collections.IEnumerable).IsAssignableFrom(pType))
             {
-                return GetGenericDictionary(pType.GenericTypeArguments[0], pType.GenericTypeArguments[1]);
+                return GetGenericDictionary(pType.GenericTypeArguments[0], pType.GenericTypeArguments[1], depth);
             }
             else if (pType.IsGenericType
                 && pType.GenericTypeArguments.Length == 1
                 && typeof(System.Collections.IEnumerable).IsAssignableFrom(pType))
             {
-                return GetGenericList(pType);
+                return GetGenericList(pType, depth);
             }
             else if (pType.IsInterface)
             {
-                return GetRandomConcreteInstanceFromInterface(pType);
+                return GetRandomConcreteInstanceFromInterface(pType, depth);
             }
             else if (pType.GetConstructor(Type.EmptyTypes) != null)
             {
-                return DynamicGenerateRandom(pType);
+                return DynamicGenerateRandom(pType, depth);
             }
             else if (pType.GetConstructors().Length > 0)
             {
-                return DynamicComplexConstructor(pType.GetConstructors());
+                return DynamicComplexConstructor(pType.GetConstructors(), depth);
             }
             else
             {
@@ -237,7 +246,7 @@ namespace DataContractGenerator
             }
         }
 
-        private object GetRandomConcreteInstanceFromInterface(Type pType)
+        private object GetRandomConcreteInstanceFromInterface(Type pType, int depth)
         {
             List<Type> types = AppDomain.CurrentDomain.GetAssemblies()
                 .SelectMany(ns => ns.GetTypes())
@@ -249,26 +258,26 @@ namespace DataContractGenerator
                 throw new NotSupportedException();
             }
 
-            return GetRandomValueForType(types[_rdm.Next(0, types.Count)]);
+            return GetRandomValueForType(types[_rdm.Next(0, types.Count)], depth);
         }
 
-        private object GetRandomTuple(Type[] genericTypeArguments)
+        private object GetRandomTuple(Type[] genericTypeArguments, int depth)
         {
             return _tupleTypes[genericTypeArguments.Length]
                 .MakeGenericType(genericTypeArguments)
                 .GetConstructor(genericTypeArguments)
-                .Invoke(genericTypeArguments.Select(t => GetRandomValueForType(t)).ToArray());
+                .Invoke(genericTypeArguments.Select(t => GetRandomValueForType(t, depth)).ToArray());
         }
 
-        private object GetRandomKeyValuePair(Type type1, Type type2)
+        private object GetRandomKeyValuePair(Type type1, Type type2, int depth)
         {
             return typeof(KeyValuePair<,>)
                 .MakeGenericType(type1, type2)
                 .GetConstructor(new Type[] { type1, type2 })
-                .Invoke(new object[] { GetRandomValueForType(type1), GetRandomValueForType(type2) });
+                .Invoke(new object[] { GetRandomValueForType(type1, depth), GetRandomValueForType(type2, depth) });
         }
 
-        private object GetGenericDictionary(Type keyType, Type valueType)
+        private object GetGenericDictionary(Type keyType, Type valueType, int depth)
         {
             var dict = typeof(Dictionary<,>)
                 .MakeGenericType(keyType, valueType)
@@ -280,38 +289,38 @@ namespace DataContractGenerator
             var keys = new List<object>();
             do
             {
-                var keyValue = GetRandomValueForType(keyType);
+                var keyValue = GetRandomValueForType(keyType, depth);
                 if (keys.Contains(keyValue))
                 {
                     break;
                 }
                 keys.Add(keyValue);
-                emptyListAdd.Invoke(dict, new object[] { keyValue, GetRandomValueForType(valueType) });
+                emptyListAdd.Invoke(dict, new object[] { keyValue, GetRandomValueForType(valueType, depth) });
             }
             while (keys.Count < maxKeysCount);
 
             return dict;
         }
 
-        private object GetArrayOfType(Type type)
+        private object GetArrayOfType(Type type, int depth)
         {
             int size = _rdm.Next(MIN_LIST_COUNT, MAX_LIST_COUNT + 1);
             var actualValues = Array.CreateInstance(type.GetElementType(), size);
             for (int i = 0; i < size; i++)
             {
-                actualValues.SetValue(GetRandomValueForType(type.GetElementType()), i);
+                actualValues.SetValue(GetRandomValueForType(type.GetElementType(), depth), i);
             }
             return actualValues;
         }
 
-        private object GetRandomNullableValue(Type type)
+        private object GetRandomNullableValue(Type type, int depth)
         {
             return GetRandomBoolean() ? null :
-                Convert.ChangeType(GetRandomValueForType(Nullable.GetUnderlyingType(type)),
+                Convert.ChangeType(GetRandomValueForType(Nullable.GetUnderlyingType(type), depth),
                     Nullable.GetUnderlyingType(type));
         }
 
-        private object GetGenericList(Type type)
+        private object GetGenericList(Type type, int depth)
         {
             object listOfPropType = typeof(List<>)
                 .MakeGenericType(type.GenericTypeArguments[0])
@@ -322,31 +331,31 @@ namespace DataContractGenerator
 
             for (int i = 0; i < _rdm.Next(MIN_LIST_COUNT, MAX_LIST_COUNT + 1); i++)
             {
-                addMethod.Invoke(listOfPropType, new object[] { GetRandomValueForType(type.GenericTypeArguments[0]) });
+                addMethod.Invoke(listOfPropType, new object[] { GetRandomValueForType(type.GenericTypeArguments[0], depth) });
             }
 
             return listOfPropType;
         }
 
-        private object DynamicComplexConstructor(ConstructorInfo[] constructors)
+        private object DynamicComplexConstructor(ConstructorInfo[] constructors, int depth)
         {
             ConstructorInfo ctor = constructors[_rdm.Next(0, constructors.Length)];
             var ctorParameters = new List<object>();
             foreach (ParameterInfo pInfo in ctor.GetParameters())
             {
-                ctorParameters.Add(GetRandomValueForType(pInfo.ParameterType));
+                ctorParameters.Add(GetRandomValueForType(pInfo.ParameterType, depth));
             }
             object instance = ctor.Invoke(ctorParameters.ToArray());
-            FillRandomProperties(instance);
+            FillRandomProperties(instance, depth + 1);
             return instance;
         }
 
-        private object DynamicGenerateRandom(Type type)
+        private object DynamicGenerateRandom(Type type, int depth)
         {
             return GetType()
-                .GetMethod(nameof(GenerateRandom))
+                .GetMethod(nameof(GenerateRandomInternal), BindingFlags.NonPublic | BindingFlags.Instance)
                 .MakeGenericMethod(type)
-                .Invoke(this, null);
+                .Invoke(this, new object[] { depth + 1 });
         }
 
         #region System types instanciation

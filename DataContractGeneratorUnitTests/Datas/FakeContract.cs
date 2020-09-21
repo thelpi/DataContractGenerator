@@ -36,5 +36,6 @@ namespace DataContractGeneratorUnitTests.Datas
         public IEnumerable<IFakeInterface> Enumerable { get; set; }
         public IReadOnlyDictionary<FakeEnum, string> ReadOnlyDictionary { get; set; }
         public FakeSpecType FakeSpec { get; set; }
+        public FakeContract Recursion { get; set; }
     }
 }

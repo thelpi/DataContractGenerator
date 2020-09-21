@@ -26,6 +26,14 @@ namespace DataContractGeneratorUnitTests
             Assert.NotNull(instance);
             Assert.Equal(0, logger.ErrorsCount);
             Assert.Equal(_expectedForFakeSpecValue, instance.FakeSpec.Value);
+            var recursionInstance = instance;
+            int i = -1;
+            while (recursionInstance != null)
+            {
+                i++;
+                recursionInstance = recursionInstance.Recursion;
+            }
+            Assert.Equal(DataContractGeneratorProvider.MAX_RECURSION_DEPTH, i);
         }
 
         private FakeSpecType RandomFakeSpecType()

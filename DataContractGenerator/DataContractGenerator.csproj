@@ -5,7 +5,12 @@
   </PropertyGroup>
 
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|AnyCPU'">
+    <PackageId>DataContractGenerator</PackageId>
+    <Version>1.0.0</Version>
+    <Authors>Lpi</Authors>
+    <Company>LpiMegaGlobalCorporation</Company>
     <DocumentationFile>bin\Debug\netcoreapp2.0\DataContractGenerator.xml</DocumentationFile>
+    <GeneratePackageOnBuild>true</GeneratePackageOnBuild>
   </PropertyGroup>
 
 </Project>

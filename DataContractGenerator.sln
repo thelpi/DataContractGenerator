@@ -3,9 +3,14 @@ Microsoft Visual Studio Solution File, Format Version 12.00
 # Visual Studio 15
 VisualStudioVersion = 15.0.27703.2026
 MinimumVisualStudioVersion = 10.0.40219.1
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "DataContractGenerator", "DataContractGenerator\DataContractGenerator.csproj", "{DA61CDF9-4F4A-4CA6-B01C-66BEA64F6C9C}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "DataContractGenerator", "DataContractGenerator\DataContractGenerator.csproj", "{DA61CDF9-4F4A-4CA6-B01C-66BEA64F6C9C}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "DataContractGeneratorUnitTests", "DataContractGeneratorUnitTests\DataContractGeneratorUnitTests.csproj", "{25941568-2A13-4CDE-9E5D-04FEA2A80519}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "DataContractGeneratorUnitTests", "DataContractGeneratorUnitTests\DataContractGeneratorUnitTests.csproj", "{25941568-2A13-4CDE-9E5D-04FEA2A80519}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Solution Items", "Solution Items", "{F96E23FB-E1F7-475C-9C89-C0B26FA6FC35}"
+	ProjectSection(SolutionItems) = preProject
+		NugetKey.txt = NugetKey.txt
+	EndProjectSection
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
