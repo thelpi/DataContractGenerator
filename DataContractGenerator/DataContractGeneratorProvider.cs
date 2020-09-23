@@ -216,10 +216,6 @@ namespace DataContractGenerator
             {
                 return GetGenericList(pType, depth);
             }
-            else if (pType.IsInterface)
-            {
-                return GetRandomConcreteInstanceFromInterface(pType, depth);
-            }
             else if (pType.GetConstructor(Type.EmptyTypes) != null)
             {
                 return DynamicGenerateRandom(pType, depth);
@@ -230,23 +226,29 @@ namespace DataContractGenerator
             }
             else
             {
-                throw new NotSupportedException();
+                // Assumes at this point the property type is:
+                // - an interface
+                // - an abstract class
+                // - a concrete class without public constructor
+                // in any case, tries to find a inherited concrete type
+                // throw an exception if none
+                return GetRandomConcreteInstanceFromAbstraction(pType, depth);
             }
         }
 
-        private object GetRandomConcreteInstanceFromInterface(Type pType, int depth)
+        private object GetRandomConcreteInstanceFromAbstraction(Type pType, int depth)
         {
             List<Type> types = AppDomain.CurrentDomain.GetAssemblies()
                 .SelectMany(ns => ns.GetTypes())
                 .Where(t => pType.IsAssignableFrom(t) && t.IsClass && !t.IsAbstract && t.GetConstructors().Length > 0)
                 .ToList();
 
-            if (types.Count == 0)
+            if (types.Count > 0)
             {
-                throw new NotSupportedException();
+                return GetRandomValueForType(types[_rdm.Next(0, types.Count)], depth);
             }
 
-            return GetRandomValueForType(types[_rdm.Next(0, types.Count)], depth);
+            throw new NotSupportedException();
         }
 
         private object GetRandomTuple(Type[] genericTypeArguments, int depth)
@@ -335,9 +337,7 @@ namespace DataContractGenerator
 
         private object GetRandomNullableValue(Type type, int depth)
         {
-            return GetRandomBoolean() ? null :
-                Convert.ChangeType(GetRandomValueForType(Nullable.GetUnderlyingType(type), depth),
-                    Nullable.GetUnderlyingType(type));
+            return Convert.ChangeType(GetRandomValueForType(Nullable.GetUnderlyingType(type), depth), Nullable.GetUnderlyingType(type));
         }
 
         private object GetGenericList(Type type, int depth)

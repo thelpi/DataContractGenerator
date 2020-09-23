@@ -10,8 +10,9 @@ namespace DataContractGeneratorUnitTests
     {
         const string _expectedForFakeSpecValue = "SALUT";
 
-        [Fact]
-        public void GenerateRandom_Success()
+        [Theory]
+        [InlineData(100)]
+        public void GenerateRandom_Success(int testsCount)
         {
             var logger = new TestLogger();
 
@@ -20,20 +21,55 @@ namespace DataContractGeneratorUnitTests
                 { typeof(FakeSpecType), new Func<FakeSpecType>(RandomFakeSpecType) }
             };
 
-            FakeContract instance = new DataContractGeneratorProvider(logger, convertes)
-                .GenerateRandom<FakeContract>();
+            var provider = new DataContractGeneratorProvider(logger, convertes);
 
-            Assert.NotNull(instance);
-            Assert.Equal(0, logger.ErrorsCount);
-            Assert.Equal(_expectedForFakeSpecValue, instance.FakeSpec.Value);
-            var recursionInstance = instance;
-            int i = -1;
-            while (recursionInstance != null)
+            for (int j = 0; j < testsCount; j++)
             {
-                i++;
-                recursionInstance = recursionInstance.Recursion;
+                logger.Clear();
+
+                FakeContract instance = provider.GenerateRandom<FakeContract>();
+
+                Assert.NotNull(instance);
+                Assert.Equal(0, logger.ErrorsCount);
+                Assert.NotNull(instance.ArrayOfIntThreeDim);
+                Assert.NotEmpty(instance.ArrayOfIntThreeDim);
+                Assert.NotNull(instance.BasicList);
+                Assert.NotEmpty(instance.BasicList);
+                Assert.NotNull(instance.BigTuple);
+                Assert.NotNull(instance.Dictionary);
+                Assert.NotEmpty(instance.Dictionary);
+                Assert.NotNull(instance.Enumerable);
+                Assert.NotEmpty(instance.Enumerable);
+                Assert.NotNull(instance.FakeAbstract);
+                Assert.NotNull(instance.FakeConcreteWithoutCtor);
+                Assert.NotNull(instance.FakeSpec);
+                Assert.Equal(_expectedForFakeSpecValue, instance.FakeSpec.Value);
+                Assert.NotNull(instance.Interface);
+                Assert.NotNull(instance.ReadOnlyDictionary);
+                Assert.NotEmpty(instance.ReadOnlyDictionary);
+                Assert.NotNull(instance.ReadOnlyList);
+                Assert.NotEmpty(instance.ReadOnlyList);
+                Assert.NotNull(instance.SmallTuple);
+                Assert.NotNull(instance.String);
+                // can't happen for now (but will later)
+                Assert.NotEmpty(instance.String);
+                Assert.NotNull(instance.NullableInt);
+                // unlikely to happen
+                Assert.NotEqual(default(TimeSpan), instance.TimeSpan);
+                Assert.NotEqual(default(DateTime), instance.DateTime);
+                Assert.NotEqual(default(DateTimeOffset), instance.DateTimeOffset);
+                Assert.NotEqual(default(Guid), instance.Guid);
+                Assert.NotEqual(default(KeyValuePair<byte, string>), instance.KeyValuePair);
+
+                var recursionInstance = instance;
+                int i = -1;
+                while (recursionInstance != null)
+                {
+                    i++;
+                    recursionInstance = recursionInstance.Recursion;
+                }
+                Assert.Equal(DataContractGeneratorProvider.MAX_RECURSION_DEPTH, i);
             }
-            Assert.Equal(DataContractGeneratorProvider.MAX_RECURSION_DEPTH, i);
         }
 
         private FakeSpecType RandomFakeSpecType()

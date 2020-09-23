@@ -37,5 +37,7 @@ namespace DataContractGeneratorUnitTests.Datas
         public IReadOnlyDictionary<FakeEnum, string> ReadOnlyDictionary { get; set; }
         public FakeSpecType FakeSpec { get; set; }
         public FakeContract Recursion { get; set; }
+        public FakeAbstract FakeAbstract { get; set; }
+        public FakeConcreteWithoutCtor FakeConcreteWithoutCtor { get; set; }
     }
 }
