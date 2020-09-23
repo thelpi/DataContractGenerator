@@ -29,7 +29,7 @@ namespace DataContractGeneratorUnitTests.Datas
         public DateTimeOffset DateTimeOffset { get; set; }
         public Guid Guid { get; set; }
         public IFakeInterface Interface { get; set; }
-        public int[] ArrayOfInt { get; set; }
+        public int[,,,] ArrayOfIntThreeDim { get; set; }
         public Dictionary<bool, IFakeInterface> Dictionary { get; set; }
         public List<IFakeInterface> BasicList { get; set; }
         public IReadOnlyList<IFakeInterface> ReadOnlyList { get; set; }

@@ -32,11 +32,7 @@ namespace DataContractGenerator
         /// will be managed as <see cref="List{T}"/> or <see cref="Dictionary{TKey, TValue}"/>,
         /// depending on the number of underlying generic types.
         /// This implementation might fail for specific type such as <see cref="HashSet{T}"/> or <see cref="SortedList{TKey, TValue}"/>.
-        /// Arrays are managed, as long as:
-        /// <list type="bullet">
-        /// <item>They're generic; ie not <see cref="Array"/>.</item>
-        /// <item>They're uni-dimensional.</item>
-        /// </list>
+        /// Arrays are managed, as long as they're generic.
         /// </remarks>
         public static IReadOnlyCollection<Type> ManagedTypes = new List<Type>
         {
@@ -200,19 +196,11 @@ namespace DataContractGenerator
             {
                 return GetRandomKeyValuePair(pType.GenericTypeArguments[0], pType.GenericTypeArguments[1], depth);
             }
-            else if (pType.IsGenericType && (
-                typeof(Tuple<>).IsAssignableFrom(pType.GetGenericTypeDefinition())
-                || typeof(Tuple<,>).IsAssignableFrom(pType.GetGenericTypeDefinition())
-                || typeof(Tuple<,,>).IsAssignableFrom(pType.GetGenericTypeDefinition())
-                || typeof(Tuple<,,,>).IsAssignableFrom(pType.GetGenericTypeDefinition())
-                || typeof(Tuple<,,,,>).IsAssignableFrom(pType.GetGenericTypeDefinition())
-                || typeof(Tuple<,,,,,>).IsAssignableFrom(pType.GetGenericTypeDefinition())
-                || typeof(Tuple<,,,,,,>).IsAssignableFrom(pType.GetGenericTypeDefinition())
-                || typeof(Tuple<,,,,,,,>).IsAssignableFrom(pType.GetGenericTypeDefinition())))
+            else if (pType.IsGenericType && typeof(System.Runtime.CompilerServices.ITuple).IsAssignableFrom(pType.GetGenericTypeDefinition()))
             {
                 return GetRandomTuple(pType.GenericTypeArguments, depth);
             }
-            else if (pType.IsArray && pType.GetArrayRank() == 1)
+            else if (pType.IsArray)
             {
                 return GetArrayOfType(pType, depth);
             }
@@ -304,13 +292,45 @@ namespace DataContractGenerator
 
         private object GetArrayOfType(Type type, int depth)
         {
+            int dims = type.GetArrayRank();
+
             int size = _rdm.Next(MIN_LIST_COUNT, MAX_LIST_COUNT + 1);
-            var actualValues = Array.CreateInstance(type.GetElementType(), size);
-            for (int i = 0; i < size; i++)
+
+            // Note: every dimensions have the same size
+            int[] sizeForEachDim = Enumerable.Range(0, dims).Select(i => size).ToArray();
+
+            var array = Array.CreateInstance(type.GetElementType(), sizeForEachDim);
+            
+            RecursiveArrayFill(type, depth, size, array, new int[dims], 0, dims);
+
+            return array;
+        }
+
+        private void ArrayFillStep(Type arrayInnerType, int instanciationDepth, int countElementsByDimension,
+            Array array, int[] currentArrayPosition, int currentDimension)
+        {
+            for (int i = 0; i < countElementsByDimension; i++)
             {
-                actualValues.SetValue(GetRandomValueForType(type.GetElementType(), depth), i);
+                currentArrayPosition[currentDimension] = i;
+                array.SetValue(GetRandomValueForType(arrayInnerType.GetElementType(), instanciationDepth), currentArrayPosition);
             }
-            return actualValues;
+        }
+
+        private void RecursiveArrayFill(Type arrayInnerType, int instanciationDepth, int countElementsByDimension,
+            Array array, int[] currentArrayPosition, int currentDimension, int countDimensions)
+        {
+            if (currentDimension == countDimensions - 1)
+            {
+                ArrayFillStep(arrayInnerType, instanciationDepth, countElementsByDimension, array, currentArrayPosition, currentDimension);
+            }
+            else
+            {
+                for (int dim = 0; dim < countElementsByDimension; dim++)
+                {
+                    currentArrayPosition[currentDimension] = dim;
+                    RecursiveArrayFill(arrayInnerType, instanciationDepth, countElementsByDimension, array, currentArrayPosition, currentDimension + 1, countDimensions);
+                }
+            }
         }
 
         private object GetRandomNullableValue(Type type, int depth)
