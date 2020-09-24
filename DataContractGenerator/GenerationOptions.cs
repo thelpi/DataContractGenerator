@@ -46,5 +46,9 @@
         /// Maximal string length.
         /// </summary>
         public int MaxStringLength { get; set; } = MAX_STRING_LENGTH;
+        /// <summary>
+        /// If <c>True</c>, string properties take the name of the property (instead of being random).
+        /// </summary>
+        public bool StringAsPropertyName { get; set; }
     }
 }

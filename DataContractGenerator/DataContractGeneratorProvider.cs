@@ -46,6 +46,8 @@ namespace DataContractGenerator
 
         private static readonly string _alphaFull = string.Concat(_alpha, _alpha.ToUpper());
         private static readonly Random _rdm = new Random();
+        private static readonly string KeyName = nameof(KeyValuePair<object, object>.Key);
+        private static readonly string ValueName = nameof(KeyValuePair<object, object>.Value);
 
         private readonly GenerationOptions _options;
         private readonly ILogger _logger;
@@ -110,7 +112,7 @@ namespace DataContractGenerator
                 {
                     try
                     {
-                        object value = GetRandomValueForType(property.PropertyType, depth);
+                        object value = GetRandomValueForType(property.PropertyType, property.Name, depth);
                         property.SetValue(instance, value);
                     }
                     catch (Exception ex)
@@ -121,7 +123,7 @@ namespace DataContractGenerator
             }
         }
 
-        private object GetRandomValueForType(Type pType, int depth)
+        private object GetRandomValueForType(Type pType, string pName, int depth)
         {
             foreach (var converterType in _converters.Keys)
             {
@@ -133,7 +135,7 @@ namespace DataContractGenerator
 
             if (pType == typeof(string))
             {
-                return GetRandomString();
+                return GetRandomString(pName);
             }
             else if (pType == typeof(decimal))
             {
@@ -238,7 +240,7 @@ namespace DataContractGenerator
 
             if (types.Count > 0)
             {
-                return GetRandomValueForType(types[_rdm.Next(0, types.Count)], depth);
+                return GetRandomValueForType(types[_rdm.Next(0, types.Count)], null, depth);
             }
 
             return null;
@@ -249,7 +251,7 @@ namespace DataContractGenerator
             return _tupleTypes[genericTypeArguments.Length]
                 .MakeGenericType(genericTypeArguments)
                 .GetConstructor(genericTypeArguments)
-                .Invoke(genericTypeArguments.Select(t => GetRandomValueForType(t, depth)).ToArray());
+                .Invoke(genericTypeArguments.Select(t => GetRandomValueForType(t, null, depth)).ToArray());
         }
 
         private object GetRandomKeyValuePair(Type type1, Type type2, int depth)
@@ -257,7 +259,11 @@ namespace DataContractGenerator
             return typeof(KeyValuePair<,>)
                 .MakeGenericType(type1, type2)
                 .GetConstructor(new Type[] { type1, type2 })
-                .Invoke(new object[] { GetRandomValueForType(type1, depth), GetRandomValueForType(type2, depth) });
+                .Invoke(new object[]
+                {
+                    GetRandomValueForType(type1, KeyName, depth),
+                    GetRandomValueForType(type2, ValueName, depth)
+                });
         }
 
         private object GetGenericDictionary(Type keyType, Type valueType, int depth)
@@ -272,13 +278,13 @@ namespace DataContractGenerator
             var keys = new List<object>();
             do
             {
-                var keyValue = GetRandomValueForType(keyType, depth);
+                var keyValue = GetRandomValueForType(keyType, KeyName, depth);
                 if (keys.Contains(keyValue))
                 {
                     break;
                 }
                 keys.Add(keyValue);
-                emptyListAdd.Invoke(dict, new object[] { keyValue, GetRandomValueForType(valueType, depth) });
+                emptyListAdd.Invoke(dict, new object[] { keyValue, GetRandomValueForType(valueType, ValueName, depth) });
             }
             while (keys.Count < maxKeysCount);
 
@@ -307,7 +313,7 @@ namespace DataContractGenerator
             for (int i = 0; i < countElementsByDimension; i++)
             {
                 currentArrayPosition[currentDimension] = i;
-                array.SetValue(GetRandomValueForType(arrayInnerType.GetElementType(), instanciationDepth), currentArrayPosition);
+                array.SetValue(GetRandomValueForType(arrayInnerType.GetElementType(), null, instanciationDepth), currentArrayPosition);
             }
         }
 
@@ -330,7 +336,7 @@ namespace DataContractGenerator
 
         private object GetRandomNullableValue(Type type, int depth)
         {
-            return Convert.ChangeType(GetRandomValueForType(Nullable.GetUnderlyingType(type), depth), Nullable.GetUnderlyingType(type));
+            return Convert.ChangeType(GetRandomValueForType(Nullable.GetUnderlyingType(type), null, depth), Nullable.GetUnderlyingType(type));
         }
 
         private object GetGenericList(Type type, int depth)
@@ -344,7 +350,7 @@ namespace DataContractGenerator
 
             for (int i = 0; i < _rdm.Next(_options.MinListCount, _options.MaxListCount + 1); i++)
             {
-                addMethod.Invoke(listOfPropType, new object[] { GetRandomValueForType(type.GenericTypeArguments[0], depth) });
+                addMethod.Invoke(listOfPropType, new object[] { GetRandomValueForType(type.GenericTypeArguments[0], null, depth) });
             }
 
             return listOfPropType;
@@ -356,7 +362,7 @@ namespace DataContractGenerator
             var ctorParameters = new List<object>();
             foreach (ParameterInfo pInfo in ctor.GetParameters())
             {
-                ctorParameters.Add(GetRandomValueForType(pInfo.ParameterType, depth));
+                ctorParameters.Add(GetRandomValueForType(pInfo.ParameterType, pInfo.Name, depth));
             }
             object instance = ctor.Invoke(ctorParameters.ToArray());
             FillRandomProperties(instance, depth + 1);
@@ -445,13 +451,14 @@ namespace DataContractGenerator
             return _rdm.Next(0, 2) == 1;
         }
 
-        private string GetRandomString()
+        private string GetRandomString(string propertyName)
         {
-            return string.Concat(
-                Enumerable
+            return _options.StringAsPropertyName && !string.IsNullOrWhiteSpace(propertyName) ?
+                propertyName
+                : string.Concat(Enumerable
                     .Range(0, _rdm.Next(_options.MinStringLength, _options.MaxStringLength + 1))
                     .Select(i => GetRandomChar())
-            );
+                );
         }
 
         private char GetRandomChar()

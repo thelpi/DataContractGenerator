@@ -22,7 +22,7 @@ namespace DataContractGeneratorUnitTests.Datas
         public int? NullableInt { get; set; }
         public Tuple<int> SmallTuple { get; set; }
         public Tuple<int, string, bool, char, double, float, decimal, Tuple<string>> BigTuple { get; set; }
-        public KeyValuePair<byte, string> KeyValuePair { get; set; }
+        public KeyValuePair<string, string> KeyValuePair { get; set; }
         public FakeEnum Enum { get; set; }
         public DateTime DateTime { get; set; }
         public TimeSpan TimeSpan { get; set; }
