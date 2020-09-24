@@ -18,7 +18,11 @@ namespace DataContractGeneratorUnitTests
 
             Dictionary<Type, Delegate> convertes = new Dictionary<Type, Delegate>
             {
-                { typeof(FakeSpecType), new Func<FakeSpecType>(RandomFakeSpecType) }
+                {
+                    typeof(FakeSpecType),
+                    new Func<FakeSpecType>(() =>
+                        new FakeSpecType { Value = _expectedForFakeSpecValue })
+                }
             };
 
             var provider = new DataContractGeneratorProvider(logger, convertes);
@@ -70,11 +74,6 @@ namespace DataContractGeneratorUnitTests
                 }
                 Assert.Equal(DataContractGeneratorProvider.MAX_RECURSION_DEPTH, i);
             }
-        }
-
-        private FakeSpecType RandomFakeSpecType()
-        {
-            return new FakeSpecType { Value = _expectedForFakeSpecValue };
         }
     }
 }

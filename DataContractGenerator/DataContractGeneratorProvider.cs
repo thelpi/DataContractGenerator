@@ -231,7 +231,7 @@ namespace DataContractGenerator
                 // - an abstract class
                 // - a concrete class without public constructor
                 // in any case, tries to find a inherited concrete type
-                // throw an exception if none
+                // gets null if everything fails
                 return GetRandomConcreteInstanceFromAbstraction(pType, depth);
             }
         }
@@ -248,7 +248,7 @@ namespace DataContractGenerator
                 return GetRandomValueForType(types[_rdm.Next(0, types.Count)], depth);
             }
 
-            throw new NotSupportedException();
+            return null;
         }
 
         private object GetRandomTuple(Type[] genericTypeArguments, int depth)
@@ -405,7 +405,7 @@ namespace DataContractGenerator
         private static DateTime GetRandomDateTime(DateTimeKind? dtk = null)
         {
             List<DateTimeKind> dtks = Enum.GetValues(typeof(DateTimeKind)).Cast<DateTimeKind>().ToList();
-            return new DateTime(_rdm.Next(0, 3000),
+            return new DateTime(_rdm.Next(1, 3000),
                 _rdm.Next(1, 13),
                 _rdm.Next(1, 29),
                 _rdm.Next(0, 24),
