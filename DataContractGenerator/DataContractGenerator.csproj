@@ -6,7 +6,8 @@
 
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|AnyCPU'">
     <PackageId>DataContractGenerator</PackageId>
-    <Version>1.0.2</Version>
+    <Version>1.1.0</Version>
+    <PackageDescription>Tools to generate randomly filled instances of any kind of data contract.</PackageDescription>
     <Authors>Lpi</Authors>
     <Company>LpiMegaGlobalCorporation</Company>
     <DocumentationFile>bin\Debug\netcoreapp2.0\DataContractGenerator.xml</DocumentationFile>
