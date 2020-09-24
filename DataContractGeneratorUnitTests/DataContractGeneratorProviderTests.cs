@@ -11,7 +11,7 @@ namespace DataContractGeneratorUnitTests
         const string _expectedForFakeSpecValue = "SALUT";
 
         [Theory]
-        [InlineData(100)]
+        [InlineData(1)]
         public void GenerateRandom_Success(int testsCount)
         {
             var logger = new TestLogger();
@@ -55,6 +55,8 @@ namespace DataContractGeneratorUnitTests
                 Assert.NotEmpty(instance.ReadOnlyList);
                 Assert.NotNull(instance.SmallTuple);
                 Assert.NotNull(instance.String);
+                Assert.NotNull(instance.FakeGeneric);
+                Assert.Null(instance.Unparsable);
                 // can't happen for now (but will later)
                 Assert.NotEmpty(instance.String);
                 Assert.NotNull(instance.NullableInt);
@@ -64,16 +66,20 @@ namespace DataContractGeneratorUnitTests
                 Assert.NotEqual(default(DateTimeOffset), instance.DateTimeOffset);
                 Assert.NotEqual(default(Guid), instance.Guid);
                 Assert.NotEqual(default(KeyValuePair<byte, string>), instance.KeyValuePair);
-
-                var recursionInstance = instance;
-                int i = -1;
-                while (recursionInstance != null)
-                {
-                    i++;
-                    recursionInstance = recursionInstance.Recursion;
-                }
-                Assert.Equal(DataContractGeneratorProvider.MAX_RECURSION_DEPTH, i);
+                AssertRecursion(instance);
             }
+        }
+
+        private static void AssertRecursion(FakeContract instance)
+        {
+            var recursionInstance = instance;
+            int i = -1;
+            while (recursionInstance != null)
+            {
+                i++;
+                recursionInstance = recursionInstance.Recursion;
+            }
+            Assert.Equal(DataContractGeneratorProvider.MAX_RECURSION_DEPTH, i);
         }
     }
 }

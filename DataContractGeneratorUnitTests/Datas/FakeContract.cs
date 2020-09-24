@@ -39,5 +39,7 @@ namespace DataContractGeneratorUnitTests.Datas
         public FakeContract Recursion { get; set; }
         public FakeAbstract FakeAbstract { get; set; }
         public FakeConcreteWithoutCtor FakeConcreteWithoutCtor { get; set; }
+        public FakeGeneric<IFakeInterface> FakeGeneric { get; set; }
+        public IFakeNoChildren Unparsable { get; set; }
     }
 }
